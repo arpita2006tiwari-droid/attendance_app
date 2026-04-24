@@ -1,0 +1,27 @@
+{
+  "name": "minimal-attendance-app",
+  "version": "1.0.0",
+  "description": "A minimal coach-only attendance management web application",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev:server": "node server.js",
+    "dev:client": "vite",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build": "vite build",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "lucide-react": "^0.370.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "vite": "^5.2.0"
+  }
+}
