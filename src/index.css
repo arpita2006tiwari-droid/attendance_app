@@ -550,51 +550,80 @@ tr:hover td { background: rgba(0,0,0,0.02); }
 }
 
 @media (max-width: 768px) {
-  .app-container { padding: 8px; }
-  .main-content { padding: 12px; padding-bottom: 80px; }
+  .app-container { padding: 4px; }
+  .main-content { padding: 8px; padding-bottom: 80px; }
   
   header { 
     flex-direction: column !important; 
     align-items: stretch !important; 
-    gap: 16px !important;
-    margin-bottom: 20px !important;
+    gap: 12px !important;
+    margin-bottom: 16px !important;
   }
-  header h1 { font-size: 1.4rem; text-align: center; }
   
-  .header-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
+  .header-main h1 { 
+    font-size: 1.25rem !important; 
+    line-height: 1.2;
+    text-align: left;
   }
-
-  .tab-group {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-    background: var(--bg-alt);
-    padding: 4px;
-    border-radius: 12px;
-  }
-  .tab-btn {
-    flex: 1;
-    text-align: center;
-    font-size: 0.85rem;
-  }
-
+  
   .header-actions {
     display: flex !important;
     flex-direction: row !important;
+    flex-wrap: wrap !important;
     align-items: center !important;
-    justify-content: space-between !important;
     gap: 8px !important;
     width: 100% !important;
   }
 
+  .tab-group {
+    display: flex;
+    justify-content: flex-start;
+    width: 100%;
+    background: var(--bg-alt);
+    padding: 3px;
+    border-radius: 10px;
+    margin-top: 8px;
+    overflow-x: auto;
+  }
+  
+  .tab-btn {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
   .school-filter-wrap {
-    flex: 1 !important;
-    min-width: 0 !important;
-    margin: 0 !important;
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .add-btn {
+    padding: 8px 12px !important;
+    font-size: 0.85rem !important;
+  }
+
+  .top-controls-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .search-bar {
+    width: 100% !important;
+  }
+
+  .attendance-card {
+    padding: 12px !important;
+  }
+
+  .attendance-card .avatar {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 0.9rem !important;
+  }
+
+  .attendance-card h3 {
+    font-size: 1rem !important;
   }
 
   .modal-content .flex.justify-between {
@@ -604,43 +633,7 @@ tr:hover td { background: rgba(0,0,0,0.02); }
     width: 100% !important;
   }
 
-  .modal-content .flex.gap-3,
-  .modal-content .flex.flex-col {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 16px !important;
-  }
-
   .modal-content button:not(.btn-icon) {
     width: 100% !important;
-  }
-
-  .modal-content .btn-icon {
-    width: auto !important;
-    padding: 4px !important;
-  }
-
-  .attendance-row {
-    width: auto !important;
-    white-space: nowrap !important;
-    padding: 8px 12px !important;
-    font-size: 0.8rem !important;
-  }
-
-  .attendance-row {
-    padding: 6px 10px !important;
-    min-height: 48px !important;
-  }
-  .student-name-text { font-size: 0.85rem; }
-  .student-school-tag { font-size: 0.7rem; }
-  
-  .btn-pa {
-    width: 32px;
-    height: 32px;
-    font-size: 0.8rem;
-  }
-
-  .top-controls-bar > div {
-    gap: 4px;
   }
 }

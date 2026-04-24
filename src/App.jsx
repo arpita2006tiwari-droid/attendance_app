@@ -2,8 +2,16 @@ import { useState, useEffect } from 'react';
 import { Search, Plus, Check, X, LogOut, Activity, Info, ChevronRight, ChevronLeft, History, Moon, Clock, Download, Calendar, Filter, Users } from 'lucide-react';
 
 export default function App() {
-  const [token, setToken] = useState(localStorage.getItem('token'));
-  const [coachName, setCoachName] = useState((localStorage.getItem('coachName') === 'Coach Arpita' ? '' : localStorage.getItem('coachName')) || '');
+  const getSafeStorage = (key) => {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const [token, setToken] = useState(getSafeStorage('token'));
+  const [coachName, setCoachName] = useState((getSafeStorage('coachName') === 'Coach Arpita' ? '' : getSafeStorage('coachName')) || '');
   const [students, setStudents] = useState([]);
   const [recentAttendance, setRecentAttendance] = useState([]);
   
@@ -300,28 +308,7 @@ export default function App() {
 
   return (
     <div className="app-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {!token ? (
-        <div className="login-wrap" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="login-box flex flex-col gap-4">
-            <div className="text-center mb-4">
-              <h1 style={{ fontSize: '1.8rem', marginBottom: '8px' }}>Hi5 Youth Foundation</h1>
-              <p className="text-secondary">Attendance Portal</p>
-            </div>
-            <form onSubmit={handleLogin} className="flex flex-col gap-4">
-              <input 
-                type="password" 
-                placeholder="Enter admin password..." 
-                value={loginPwd}
-                onChange={e => setLoginPwd(e.target.value)}
-                autoFocus
-              />
-              <button type="submit" className="btn-primary">Sign In</button>
-            </form>
-          </div>
-        </div>
-      ) : (
-        <>
-          <main className="main-content">
+      <main className="main-content">
           <header className="flex justify-between items-center mb-6">
             <div className="flex flex-col gap-3 w-full header-main">
               <div className="flex justify-between items-center w-full">
@@ -571,10 +558,8 @@ export default function App() {
         )}
       </main>
 
-      {/* Modals - Only rendered when logged in or specifically triggered */}
-      {token && (
-        <>
-          {selectedStudentInfo && (
+      {/* Modals */}
+      {selectedStudentInfo && (
             <div className="modal-overlay" onClick={() => setSelectedStudentInfo(null)}>
               <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-6">
@@ -672,10 +657,6 @@ export default function App() {
               </div>
             </div>
           )}
-        </>
-      )}
-    </>
-  )}
     </div>
   );
 }
