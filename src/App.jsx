@@ -420,27 +420,32 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Session Row */}
+                {/* Session Dropdown Row */}
                 <div className="date-session-row">
-                  <div className="session-picker-wrap bg-white border rounded-xl p-3">
-                    <Clock size={18} className="text-secondary" />
+                  <div className="session-picker-wrap bg-white border rounded-xl p-3" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                    <Clock size={18} className="text-secondary" style={{ flexShrink: 0 }} />
                     <select 
                       value={session} 
                       onChange={e => setSession(e.target.value)} 
-                      className="session-select-compact"
-                      style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.9rem', width: '100px' }}
+                      style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.9rem', flex: 1, color: 'var(--text-primary)', outline: 'none' }}
                     >
                       <option>Morning</option>
                       <option>Afternoon</option>
                       <option>Evening</option>
                       <option>Match</option>
                     </select>
-                    <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 8px' }}></div>
+                  </div>
+                </div>
+
+                {/* Time Input Row */}
+                <div className="date-session-row">
+                  <div className="bg-white border rounded-xl p-3" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', flexShrink: 0 }}>Time</span>
                     <input 
                       type="time" 
                       value={sessionTime}
                       onChange={e => setSessionTime(e.target.value)}
-                      style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.9rem', width: '90px' }}
+                      style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.9rem', flex: 1, color: 'var(--text-primary)', outline: 'none', minWidth: 0 }}
                     />
                   </div>
                 </div>
