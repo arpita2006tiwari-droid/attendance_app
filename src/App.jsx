@@ -405,7 +405,7 @@ export default function App() {
 
               </div>
 
-            </div> {/* end sections wrapper */
+            </div> {/* end sections wrapper */}
 
 
             <div style={{ border:'none', background:'transparent', boxShadow:'none' }}>
