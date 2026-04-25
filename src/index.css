@@ -192,6 +192,19 @@ input:focus, select:focus {
   box-shadow: 0 0 0 4px rgba(231, 111, 81, 0.1);
 }
 
+/* Force time input text to be visible (dark) on mobile Safari */
+input[type="time"] {
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  opacity: 1 !important;
+}
+input[type="time"]::-webkit-datetime-edit { color: var(--text-primary); }
+input[type="time"]::-webkit-datetime-edit-fields-wrapper { color: var(--text-primary); }
+input[type="time"]::-webkit-datetime-edit-hour-field { color: var(--text-primary); }
+input[type="time"]::-webkit-datetime-edit-minute-field { color: var(--text-primary); }
+input[type="time"]::-webkit-datetime-edit-ampm-field { color: var(--text-primary); }
+input[type="time"]::-webkit-calendar-picker-indicator { opacity: 0.6; }
+
 .session-select {
   font-size: 1.1rem;
   font-weight: 600;
