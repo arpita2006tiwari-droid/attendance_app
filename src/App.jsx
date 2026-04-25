@@ -309,8 +309,9 @@ export default function App() {
   return (
     <div className="app-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <main className="main-content">
-          <header className="flex justify-between items-center mb-6">
+          <header className="flex flex-col">
             <div className="flex flex-col gap-3 w-full header-main">
+
               <div className="flex justify-between items-center w-full">
                 <h1 style={{ margin: 0 }}>Hi5 Youth Foundation</h1>
                 <div className="flex gap-2">
@@ -326,30 +327,31 @@ export default function App() {
                 </div>
               </div>
             
-            <div className="tab-group">
-              <button 
-                onClick={() => setCurrentView('marking')}
-                className={`tab-btn ${currentView === 'marking' ? 'active' : ''}`}
-              >
-                Mark Attendance
-              </button>
-              <button 
-                onClick={() => setCurrentView('explorer')}
-                className={`tab-btn ${currentView === 'explorer' ? 'active' : ''}`}
-              >
-                History Explorer
-              </button>
+              <div className="tab-group">
+                <button 
+                  onClick={() => setCurrentView('marking')}
+                  className={`tab-btn ${currentView === 'marking' ? 'active' : ''}`}
+                >
+                  Mark Attendance
+                </button>
+                <button 
+                  onClick={() => setCurrentView('explorer')}
+                  className={`tab-btn ${currentView === 'explorer' ? 'active' : ''}`}
+                >
+                  History Explorer
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 header-actions">
-            <div className="flex items-center gap-2 bg-surface p-1 rounded-lg border school-filter-wrap">
-              <div className="flex items-center gap-2">
+
+          <div className="flex items-center justify-between gap-3 header-actions mt-4">
+            <div className="flex items-center gap-2 bg-surface p-1 rounded-lg border school-filter-wrap flex-1">
+              <div className="flex items-center gap-1 flex-1">
                 <Users size={16} className="ml-2 text-secondary" />
                 <select 
                   value={selectedSchool} 
                   onChange={e => setSelectedSchool(e.target.value)}
-                  className="text-sm font-medium border-none bg-transparent"
+                  className="text-sm font-medium border-none bg-transparent w-full"
                   style={{ padding: '4px 8px' }}
                 >
                   <option>All Schools</option>
@@ -373,64 +375,88 @@ export default function App() {
           </div>
         </header>
 
+
         {currentView === 'marking' ? (
           <>
-            {/* Top Controls */}
-            <div className="flex flex-col gap-4 mb-6">
-              <div className="flex items-center gap-3 w-full top-controls-bar" style={{ flexWrap: 'wrap' }}>
-                <div className="flex items-center gap-2 search-bar">
-                  <Search size={18} className="text-secondary" />
-                  <input 
-                    type="text" 
-                    placeholder="Search name or ID..." 
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    style={{ border: 'none', background: 'transparent', padding: 0 }}
-                  />
-                </div>
-                <div style={{ width: '1px', height: '24px', background: 'var(--border-color)' }}></div>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="date" 
-                    value={attendanceDate}
-                    onChange={e => setAttendanceDate(e.target.value)}
-                  />
-                  <button 
-                    onClick={() => {
-                      setAttendanceDate(new Date().toISOString().split('T')[0]);
-                      setSession('Morning');
-                      setSessionTime('');
-                      setIsEditing(true);
-                    }}
-                    className="btn-ghost"
-                    style={{ fontSize: '0.8rem', padding: '4px 8px' }}
-                  >
-                    Today
-                  </button>
-                </div>
-                <div style={{ width: '1px', height: '24px', background: 'var(--border-color)' }}></div>
-                <div className="flex items-center gap-2">
-                  <select value={session} onChange={e => setSession(e.target.value)} className="session-select">
-                    <option>Morning</option>
-                    <option>Afternoon</option>
-                    <option>Evening</option>
-                    <option>Match</option>
-                  </select>
-                  <input 
-                    type="time" 
-                    value={sessionTime}
-                    onChange={e => setSessionTime(e.target.value)}
-                    style={{ width: '120px' }}
-                  />
-                </div>
+            <div className="flex flex-col gap-3 mb-4">
+
+              {/* Search Section */}
+              <div className="flex items-center gap-2 search-bar border rounded-xl p-3 bg-white">
+                <Search size={18} className="text-secondary" />
+                <input 
+                  type="text" 
+                  placeholder="Search name or ID..." 
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{ border: 'none', background: 'transparent', padding: 0, flex: 1 }}
+                />
               </div>
-            </div>
+
+              {/* Date & Session Group */}
+              <div className="flex flex-col gap-2">
+
+                {/* Date Row */}
+                <div className="date-session-row">
+                  <div className="date-picker-wrap bg-white border rounded-xl p-3">
+                    <Calendar size={18} className="text-secondary" />
+                    <input 
+                      type="date" 
+                      value={attendanceDate}
+                      onChange={e => setAttendanceDate(e.target.value)}
+                      style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.9rem' }}
+                    />
+                    <button 
+                      onClick={() => {
+                        setAttendanceDate(new Date().toISOString().split('T')[0]);
+                        setSession('Morning');
+                        setSessionTime('');
+                        setIsEditing(true);
+                      }}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.8rem', padding: '2px 8px', marginLeft: 'auto' }}
+                    >
+                      Today
+                    </button>
+                  </div>
+                </div>
+
+                {/* Session Row */}
+                <div className="date-session-row">
+                  <div className="session-picker-wrap bg-white border rounded-xl p-3">
+                    <Clock size={18} className="text-secondary" />
+                    <select 
+                      value={session} 
+                      onChange={e => setSession(e.target.value)} 
+                      className="session-select-compact"
+                      style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.9rem', width: '100px' }}
+                    >
+                      <option>Morning</option>
+                      <option>Afternoon</option>
+                      <option>Evening</option>
+                      <option>Match</option>
+                    </select>
+                    <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 8px' }}></div>
+                    <input 
+                      type="time" 
+                      value={sessionTime}
+                      onChange={e => setSessionTime(e.target.value)}
+                      style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.9rem', width: '90px' }}
+                    />
+                  </div>
+                </div>
+
+              </div> {/* end Date & Session Group */}
+
+            </div> {/* end flex-col gap-3 mb-4 sections */}
+
 
             <div className="table-container" style={{ border: 'none', background: 'transparent', boxShadow: 'none' }}>
+
               <div className="attendance-list-compact">
                 {!filteredStudents || filteredStudents.length === 0 ? (
-                  <div className="text-center py-12 text-secondary card">No students found.</div>
+                  <div className="empty-state">No students found.</div>
                 ) : (
+
                   filteredStudents.map(student => (
                     <div 
                       key={student.id} 
@@ -480,7 +506,7 @@ export default function App() {
               <div className="fixed-submit-bar">
                 <button 
                   className="btn-primary" 
-                  onClick={submitAttendance}
+                  onClick={submitBulkAttendance}
                   style={{ width: '100%', maxWidth: '400px', height: '50px', fontSize: '1.1rem' }}
                 >
                   Submit Attendance
