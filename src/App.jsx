@@ -309,157 +309,109 @@ export default function App() {
   return (
     <div className="app-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <main className="main-content">
-          <header className="flex flex-col">
-            <div className="flex flex-col gap-3 w-full header-main">
+          <header style={{ display:'flex', flexDirection:'column', gap:'10px', marginBottom:'16px' }}>
 
-              <div className="flex justify-between items-center w-full">
-                <h1 style={{ margin: 0 }}>Hi5 Youth Foundation</h1>
-                <div className="flex gap-2">
-                  <button onClick={() => {
-                    fetchHistory();
-                    setShowHistoryModal(true);
-                  }} className="btn-icon" title="History">
-                    <Clock size={20} />
-                  </button>
-                  <button onClick={handleLogout} className="btn-icon" title="Logout">
-                    <LogOut size={20} />
-                  </button>
-                </div>
-              </div>
-            
-              <div className="tab-group">
-                <button 
-                  onClick={() => setCurrentView('marking')}
-                  className={`tab-btn ${currentView === 'marking' ? 'active' : ''}`}
-                >
-                  Mark Attendance
-                </button>
-                <button 
-                  onClick={() => setCurrentView('explorer')}
-                  className={`tab-btn ${currentView === 'explorer' ? 'active' : ''}`}
-                >
-                  History Explorer
-                </button>
+            {/* Row 1: Title + Icons */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <h1 style={{ margin:0, fontSize:'1.25rem', fontWeight:700 }}>Hi5 Youth Foundation</h1>
+              <div style={{ display:'flex', gap:'4px', flexShrink:0 }}>
+                <button onClick={() => { fetchHistory(); setShowHistoryModal(true); }} className="btn-icon" title="History"><Clock size={20} /></button>
+                <button onClick={handleLogout} className="btn-icon" title="Logout"><LogOut size={20} /></button>
               </div>
             </div>
 
+            {/* Row 2: Tab Toggle */}
+            <div style={{ display:'flex', background:'var(--bg-alt)', borderRadius:'10px', padding:'4px', gap:'4px' }}>
+              <button onClick={() => setCurrentView('marking')} className={`tab-btn ${currentView==='marking'?'active':''}`} style={{ flex:1 }}>Mark Attendance</button>
+              <button onClick={() => setCurrentView('explorer')} className={`tab-btn ${currentView==='explorer'?'active':''}`} style={{ flex:1 }}>History Explorer</button>
+            </div>
 
-          <div className="flex items-center justify-between gap-3 header-actions mt-4">
-            <div className="flex items-center gap-2 bg-surface p-1 rounded-lg border school-filter-wrap flex-1">
-              <div className="flex items-center gap-1 flex-1">
-                <Users size={16} className="ml-2 text-secondary" />
-                <select 
-                  value={selectedSchool} 
+            {/* Row 3: Filter Row */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'10px' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:'6px', flex:1, background:'var(--surface-color)', border:'1px solid var(--border-color)', borderRadius:'10px', padding:'7px 10px' }}>
+                <Users size={16} style={{ color:'var(--text-secondary)', flexShrink:0 }} />
+                <select
+                  value={selectedSchool}
                   onChange={e => setSelectedSchool(e.target.value)}
-                  className="text-sm font-medium border-none bg-transparent w-full"
-                  style={{ padding: '4px 8px' }}
+                  style={{ flex:1, border:'none', background:'transparent', padding:0, fontSize:'0.9rem', color:'var(--text-primary)', outline:'none' }}
                 >
                   <option>All Schools</option>
-                  {(schools || []).map(school => (
-                    <option key={school.id} value={school.name}>{school.name}</option>
-                  ))}
+                  {(schools||[]).map(school => <option key={school.id} value={school.name}>{school.name}</option>)}
                 </select>
+                <button onClick={() => setShowAddSchoolModal(true)} style={{ background:'transparent', border:'none', padding:'2px', color:'var(--accent-color)', cursor:'pointer', display:'flex', alignItems:'center' }}><Plus size={16} /></button>
               </div>
-              <button 
-                onClick={() => setShowAddSchoolModal(true)} 
-                className="btn-ghost" 
-                style={{ padding: '4px', color: 'var(--accent-color)' }}
-              >
-                <Plus size={16} />
-              </button>
+              <button onClick={() => setShowAddModal(true)} className="btn-primary add-btn"><Plus size={18} /> Add Student</button>
             </div>
 
-            <button onClick={() => setShowAddModal(true)} className="btn-primary add-btn">
-              <Plus size={18} /> Add Student
-            </button>
-          </div>
-        </header>
+          </header>
 
 
         {currentView === 'marking' ? (
           <>
-            <div className="flex flex-col gap-3 mb-4">
+            {/* ── Sections wrapper ── */}
+            <div style={{ display:'flex', flexDirection:'column', gap:'12px', marginBottom:'16px' }}>
 
-              {/* Search Section */}
-              <div className="flex items-center gap-2 search-bar border rounded-xl p-3 bg-white">
-                <Search size={18} className="text-secondary" />
-                <input 
-                  type="text" 
-                  placeholder="Search name or ID..." 
+              {/* Search Bar */}
+              <div style={{ display:'flex', alignItems:'center', gap:'10px', background:'#FFFBF5', border:'1px solid var(--border-color)', borderRadius:'12px', padding:'11px 14px' }}>
+                <Search size={18} style={{ color:'var(--text-secondary)', flexShrink:0 }} />
+                <input
+                  type="text"
+                  placeholder="Search name or ID..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  style={{ border: 'none', background: 'transparent', padding: 0, flex: 1 }}
+                  style={{ border:'none', background:'transparent', padding:0, flex:1, outline:'none', fontSize:'0.95rem', color:'var(--text-primary)' }}
                 />
               </div>
 
-              {/* Date & Session Group */}
-              <div className="flex flex-col gap-2">
+              {/* Date + Session Group */}
+              <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
 
                 {/* Date Row */}
-                <div className="date-session-row">
-                  <div className="date-picker-wrap bg-white border rounded-xl p-3">
-                    <Calendar size={18} className="text-secondary" />
-                    <input 
-                      type="date" 
-                      value={attendanceDate}
-                      onChange={e => setAttendanceDate(e.target.value)}
-                      style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.9rem' }}
-                    />
-                    <button 
-                      onClick={() => {
-                        setAttendanceDate(new Date().toISOString().split('T')[0]);
-                        setSession('Morning');
-                        setSessionTime('');
-                        setIsEditing(true);
-                      }}
-                      className="btn-ghost"
-                      style={{ fontSize: '0.8rem', padding: '2px 8px', marginLeft: 'auto' }}
-                    >
-                      Today
-                    </button>
-                  </div>
+                <div style={{ display:'flex', alignItems:'center', gap:'10px', background:'#FFFBF5', border:'1px solid var(--border-color)', borderRadius:'12px', padding:'11px 14px' }}>
+                  <Calendar size={18} style={{ color:'var(--text-secondary)', flexShrink:0 }} />
+                  <input
+                    type="date"
+                    value={attendanceDate}
+                    onChange={e => setAttendanceDate(e.target.value)}
+                    style={{ border:'none', background:'transparent', padding:0, flex:1, fontSize:'0.9rem', color:'var(--text-primary)', outline:'none' }}
+                  />
+                  <button
+                    onClick={() => { setAttendanceDate(new Date().toISOString().split('T')[0]); setSession('Morning'); setSessionTime(''); setIsEditing(true); }}
+                    style={{ background:'transparent', border:'none', fontSize:'0.8rem', color:'var(--accent-color)', padding:'2px 8px', cursor:'pointer', fontWeight:600, flexShrink:0, borderRadius:'6px' }}
+                  >Today</button>
                 </div>
 
-                {/* Session Dropdown Row */}
-                <div className="date-session-row">
-                  <div className="session-picker-wrap bg-white border rounded-xl p-3" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
-                    <Clock size={18} className="text-secondary" style={{ flexShrink: 0 }} />
-                    <select 
-                      value={session} 
-                      onChange={e => setSession(e.target.value)} 
-                      style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.9rem', flex: 1, color: 'var(--text-primary)', outline: 'none' }}
-                    >
-                      <option>Morning</option>
-                      <option>Afternoon</option>
-                      <option>Evening</option>
-                      <option>Match</option>
-                    </select>
-                  </div>
+                {/* Session Row: dropdown + time on ONE row */}
+                <div style={{ display:'flex', alignItems:'center', gap:'10px', background:'#FFFBF5', border:'1px solid var(--border-color)', borderRadius:'12px', padding:'11px 14px' }}>
+                  <Clock size={18} style={{ color:'var(--text-secondary)', flexShrink:0 }} />
+                  <select
+                    value={session}
+                    onChange={e => setSession(e.target.value)}
+                    style={{ border:'none', background:'transparent', padding:0, fontSize:'0.9rem', flex:1, color:'var(--text-primary)', outline:'none' }}
+                  >
+                    <option>Morning</option>
+                    <option>Afternoon</option>
+                    <option>Evening</option>
+                    <option>Match</option>
+                  </select>
+                  <div style={{ width:'1px', height:'18px', background:'var(--border-color)', flexShrink:0 }} />
+                  <input
+                    type="time"
+                    value={sessionTime}
+                    onChange={e => setSessionTime(e.target.value)}
+                    style={{ border:'none', background:'transparent', padding:0, fontSize:'0.9rem', flex:1, minWidth:'85px', color:'var(--text-primary)', WebkitTextFillColor:'var(--text-primary)', outline:'none' }}
+                  />
                 </div>
 
-                {/* Time Input Row */}
-                <div className="date-session-row">
-                  <div className="bg-white border rounded-xl p-3" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', flexShrink: 0 }}>Time</span>
-                    <input 
-                      type="time" 
-                      value={sessionTime}
-                      onChange={e => setSessionTime(e.target.value)}
-                      style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.9rem', flex: 1, color: 'var(--text-primary)', outline: 'none', minWidth: 0 }}
-                    />
-                  </div>
-                </div>
+              </div>
 
-              </div> {/* end Date & Session Group */}
-
-            </div> {/* end flex-col gap-3 mb-4 sections */}
+            </div> {/* end sections wrapper */
 
 
-            <div className="table-container" style={{ border: 'none', background: 'transparent', boxShadow: 'none' }}>
-
+            <div style={{ border:'none', background:'transparent', boxShadow:'none' }}>
               <div className="attendance-list-compact">
                 {!filteredStudents || filteredStudents.length === 0 ? (
-                  <div className="empty-state">No students found.</div>
+                  <div style={{ textAlign:'center', paddingTop:'60px', paddingBottom:'32px', color:'var(--text-secondary)', opacity:0.55, fontSize:'0.9rem', letterSpacing:'0.01em' }}>No students found.</div>
                 ) : (
 
                   filteredStudents.map(student => (
