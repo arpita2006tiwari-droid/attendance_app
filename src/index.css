@@ -186,6 +186,7 @@ input, select {
   font-size: 0.95rem;
   outline: none;
   transition: all 0.2s;
+  width: 100%;
 }
 input:focus, select:focus { 
   border-color: var(--accent-color);
@@ -804,3 +805,59 @@ tr:hover td { background: rgba(0,0,0,0.02); }
   }
 }
 
+/* --- New Styles for Profile & Serial Numbers --- */
+.serial-tag {
+  color: var(--accent-color);
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.serial-badge {
+  background: var(--bg-alt);
+  color: var(--accent-color);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.profile-modal {
+  max-width: 600px !important;
+}
+
+.profile-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.documents-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.upload-box {
+  background: #FFFBF5;
+  border: 1px dashed var(--border-color);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.scrollable-modal {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.doc-thumbnail {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}

@@ -3,6 +3,8 @@ import sqlite3 from 'sqlite3';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import multer from 'multer';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -13,6 +15,33 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(join(__dirname, 'uploads')));
+
+// Multer storage config
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = join(__dirname, 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir);
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, PNG, and PDF are allowed.'));
+    }
+  }
+});
 
 // Initialize SQLite database
 const dbPath = join(__dirname, 'database.db');
@@ -23,6 +52,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
     console.log('Connected to SQLite database');
     db.serialize(() => {
       db.run(`
+        CREATE TABLE IF NOT EXISTS centres (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT UNIQUE NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
         CREATE TABLE IF NOT EXISTS students (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
@@ -31,7 +68,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
           phone TEXT,
           address TEXT,
           school TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          centre_id INTEGER,
+          serial_number TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (centre_id) REFERENCES centres (id)
         )
       `);
 
@@ -43,12 +83,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
           session TEXT NOT NULL,
           session_time TEXT,
           school_name TEXT,
+          centre_id INTEGER,
           status TEXT CHECK( status IN ('Present','Absent') ) NOT NULL,
           marked_by TEXT,
           updated_by TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME,
           FOREIGN KEY (student_id) REFERENCES students (id),
+          FOREIGN KEY (centre_id) REFERENCES centres (id),
           UNIQUE(student_id, date, session, session_time)
         )
       `);
@@ -58,6 +100,18 @@ const db = new sqlite3.Database(dbPath, (err) => {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT UNIQUE NOT NULL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS documents (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          student_id INTEGER NOT NULL,
+          document_type TEXT,
+          file_name TEXT NOT NULL,
+          original_name TEXT NOT NULL,
+          uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (student_id) REFERENCES students (id)
         )
       `);
       
@@ -70,11 +124,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
         }
       });
       
-      // Migration: Add school_name to existing records if missing
+      // Migration: Add columns to existing tables if missing
       db.run("ALTER TABLE attendance ADD COLUMN school_name TEXT", (err) => {
         if (!err) {
-          console.log("Migration: Added school_name column to attendance table");
-          // Backfill school_name from students table
           db.run(`
             UPDATE attendance 
             SET school_name = (SELECT school FROM students WHERE students.id = attendance.student_id)
@@ -83,10 +135,19 @@ const db = new sqlite3.Database(dbPath, (err) => {
         }
       });
 
-      // Add columns if they don't exist (migration)
       db.run("ALTER TABLE attendance ADD COLUMN marked_by TEXT", (err) => {});
       db.run("ALTER TABLE attendance ADD COLUMN updated_by TEXT", (err) => {});
       db.run("ALTER TABLE attendance ADD COLUMN updated_at DATETIME", (err) => {});
+      db.run("ALTER TABLE attendance ADD COLUMN centre_id INTEGER", (err) => {});
+
+      db.run("ALTER TABLE students ADD COLUMN centre_id INTEGER", (err) => {});
+      db.run("ALTER TABLE students ADD COLUMN serial_number TEXT", (err) => {});
+      db.run("ALTER TABLE students ADD COLUMN parent_name TEXT", (err) => {});
+      db.run("ALTER TABLE students ADD COLUMN email TEXT", (err) => {});
+      db.run("ALTER TABLE students ADD COLUMN joining_date TEXT", (err) => {});
+      db.run("ALTER TABLE students ADD COLUMN school_id_number TEXT", (err) => {});
+      db.run("ALTER TABLE students ADD COLUMN aadhaar_number TEXT", (err) => {});
+      db.run("ALTER TABLE students ADD COLUMN updated_at DATETIME", (err) => {});
       
       db.run(`
         CREATE UNIQUE INDEX IF NOT EXISTS unique_attendance
@@ -120,20 +181,33 @@ app.get('/api/students', (req, res) => {
       s.phone,
       s.address,
       s.school,
+      s.centre_id,
+      s.serial_number,
+      s.parent_name,
+      s.email,
+      s.joining_date,
+      s.school_id_number,
+      s.aadhaar_number,
+      c.name as centre_name,
       COUNT(a.id) as total_classes,
       SUM(CASE WHEN a.status = 'Present' THEN 1 ELSE 0 END) as present_classes
     FROM students s
     LEFT JOIN attendance a ON s.id = a.student_id
+    LEFT JOIN centres c ON s.centre_id = c.id
     WHERE 1=1
   `;
   const params = [];
   let queryWithFilter = query;
   if (req.query.school) {
-    queryWithFilter = queryWithFilter.replace('WHERE 1=1', 'WHERE s.school = ?');
+    queryWithFilter += ' AND s.school = ?';
     params.push(req.query.school);
   }
+  if (req.query.centre_id) {
+    queryWithFilter += ' AND s.centre_id = ?';
+    params.push(req.query.centre_id);
+  }
   
-  const finalQuery = queryWithFilter + ` GROUP BY s.id, s.name, s.sport ORDER BY s.name ASC`;
+  const finalQuery = queryWithFilter + ` GROUP BY s.id, s.name, s.sport, s.centre_id, s.serial_number, c.name ORDER BY CAST(s.serial_number AS INTEGER) ASC, s.name ASC`;
   
   db.all(finalQuery, params, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -159,6 +233,14 @@ app.get('/api/students', (req, res) => {
         phone: r.phone,
         address: r.address,
         school: r.school,
+        centre_id: r.centre_id,
+        centre_name: r.centre_name,
+        serial_number: r.serial_number,
+        parent_name: r.parent_name,
+        email: r.email,
+        joining_date: r.joining_date,
+        school_id_number: r.school_id_number,
+        aadhaar_number: r.aadhaar_number,
         percentage,
         health,
         total_classes: r.total_classes
@@ -170,22 +252,32 @@ app.get('/api/students', (req, res) => {
 });
 
 app.post('/api/students', (req, res) => {
-  const { name, sport, age, phone, address, school } = req.body;
+  const { name, sport, age, phone, address, school, centre_id, serial_number, parent_name, email, joining_date, school_id_number, aadhaar_number } = req.body;
   if (!name || !sport) return res.status(400).json({ error: 'Name and sport are required' });
-  db.run('INSERT INTO students (name, sport, age, phone, address, school) VALUES (?, ?, ?, ?, ?, ?)', 
-    [name, sport, age, phone, address, school], function (err) {
+  
+  if (aadhaar_number && !/^\d{12}$/.test(aadhaar_number)) {
+    return res.status(400).json({ error: 'Aadhaar must be exactly 12 numeric digits' });
+  }
+
+  db.run('INSERT INTO students (name, sport, age, phone, address, school, centre_id, serial_number, parent_name, email, joining_date, school_id_number, aadhaar_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+    [name, sport, age, phone, address, school, centre_id || null, serial_number || null, parent_name || null, email || null, joining_date || null, school_id_number || null, aadhaar_number || null], function (err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ id: this.lastID, name, sport, age, phone, address, school });
+    res.json({ id: this.lastID, name, sport, age, phone, address, school, centre_id, serial_number, parent_name, email, joining_date, school_id_number, aadhaar_number });
   });
 });
 
 app.put('/api/students/:id', (req, res) => {
-  const { name, sport, age, phone, address, school } = req.body;
+  const { name, sport, age, phone, address, school, centre_id, serial_number, parent_name, email, joining_date, school_id_number, aadhaar_number } = req.body;
   const { id } = req.params;
-  db.run('UPDATE students SET name = ?, sport = ?, age = ?, phone = ?, address = ?, school = ? WHERE id = ?', 
-    [name, sport, age, phone, address, school, id], function (err) {
+
+  if (aadhaar_number && !/^\d{12}$/.test(aadhaar_number)) {
+    return res.status(400).json({ error: 'Aadhaar must be exactly 12 numeric digits' });
+  }
+
+  db.run('UPDATE students SET name = ?, sport = ?, age = ?, phone = ?, address = ?, school = ?, centre_id = ?, serial_number = ?, parent_name = ?, email = ?, joining_date = ?, school_id_number = ?, aadhaar_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
+    [name, sport, age, phone, address, school, centre_id || null, serial_number || null, parent_name || null, email || null, joining_date || null, school_id_number || null, aadhaar_number || null, id], function (err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ id, name, sport, age, phone, address, school });
+    res.json({ id, name, sport, age, phone, address, school, centre_id, serial_number, parent_name, email, joining_date, school_id_number, aadhaar_number });
   });
 });
 
@@ -244,22 +336,23 @@ app.get('/api/attendance/student/:id', (req, res) => {
 
 // 3. Attendance
 app.get('/api/attendance', (req, res) => {
-  const { date, session } = req.query;
+  const { date, session, centre_id } = req.query;
   let query = `
-    SELECT a.*, s.name as student_name, s.sport 
+    SELECT a.*, s.name as student_name, s.sport, s.serial_number, c.name as centre_name
     FROM attendance a
     JOIN students s ON a.student_id = s.id
+    LEFT JOIN centres c ON a.centre_id = c.id
   `;
   const params = [];
+  const filters = [];
 
-  if (date && session) {
-    query += ' WHERE a.date = ? AND a.session = ?';
-    if (req.query.session_time) {
-      query += ' AND a.session_time = ?';
-      params.push(date, session, req.query.session_time);
-    } else {
-      params.push(date, session);
-    }
+  if (date) { filters.push('a.date = ?'); params.push(date); }
+  if (session) { filters.push('a.session = ?'); params.push(session); }
+  if (req.query.session_time) { filters.push('a.session_time = ?'); params.push(req.query.session_time); }
+  if (centre_id) { filters.push('a.centre_id = ?'); params.push(centre_id); }
+
+  if (filters.length > 0) {
+    query += ' WHERE ' + filters.join(' AND ');
   }
   
   query += ' ORDER BY a.id DESC';
@@ -271,18 +364,19 @@ app.get('/api/attendance', (req, res) => {
 });
 
 app.post('/api/attendance', (req, res) => {
-  const { records, date, session, coach_name } = req.body;
+  const { records, date, session, session_time, coach_name, centre_id } = req.body;
   
   if (!records || !Array.isArray(records) || !date || !session || !coach_name) {
     return res.status(400).json({ error: 'Missing required fields for bulk submission' });
   }
 
   const stmt = db.prepare(`
-    INSERT INTO attendance (student_id, school_name, date, session, session_time, status, marked_by, updated_by, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO attendance (student_id, school_name, centre_id, date, session, session_time, status, marked_by, updated_by, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(student_id, date, session, session_time) DO UPDATE SET 
       status = excluded.status,
       school_name = excluded.school_name,
+      centre_id = excluded.centre_id,
       updated_by = excluded.marked_by,
       updated_at = CURRENT_TIMESTAMP
   `);
@@ -293,7 +387,7 @@ app.post('/api/attendance', (req, res) => {
       // Find the current school for this student to store in attendance
       db.get('SELECT school FROM students WHERE id = ?', [record.student_id], (err, sRow) => {
         const currentSchool = sRow ? sRow.school : null;
-        stmt.run([record.student_id, currentSchool, date, session, session_time || null, record.status, coach_name, coach_name]);
+        stmt.run([record.student_id, currentSchool, centre_id || null, date, session, session_time || null, record.status, coach_name, coach_name]);
       });
     });
     db.run("COMMIT", (err) => {
@@ -321,6 +415,86 @@ app.post('/api/schools', (req, res) => {
       return res.status(500).json({ error: err.message });
     }
     res.json({ id: this.lastID, name });
+  });
+});
+
+// 4. Centres API
+app.get('/api/centres', (req, res) => {
+  db.all('SELECT * FROM centres ORDER BY name ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.post('/api/centres', (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'Name is required' });
+  db.run('INSERT INTO centres (name) VALUES (?)', [name], function(err) {
+    if (err) {
+      if (err.message.includes('UNIQUE')) return res.status(400).json({ error: 'Centre already exists' });
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ id: this.lastID, name });
+  });
+});
+
+// 5. Documents API
+app.get('/api/students/:id/documents', (req, res) => {
+  const { id } = req.params;
+  db.all('SELECT * FROM documents WHERE student_id = ? ORDER BY uploaded_at DESC', [id], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.post('/api/students/:id/documents', (req, res) => {
+  upload.single('document')(req, res, function(err) {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({ error: err.message });
+    } else if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+
+    const { id } = req.params;
+    const { document_type } = req.body;
+    
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const file_name = req.file.filename;
+    const original_name = req.file.originalname;
+
+    db.run('INSERT INTO documents (student_id, document_type, file_name, original_name) VALUES (?, ?, ?, ?)',
+      [id, document_type || 'Other', file_name, original_name], function(dbErr) {
+        if (dbErr) return res.status(500).json({ error: dbErr.message });
+        res.json({
+          id: this.lastID,
+          student_id: id,
+          document_type: document_type || 'Other',
+          file_name,
+          original_name
+        });
+    });
+  });
+});
+
+app.delete('/api/students/:id/documents/:docId', (req, res) => {
+  const { id, docId } = req.params;
+  
+  db.get('SELECT file_name FROM documents WHERE id = ? AND student_id = ?', [docId, id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Document not found' });
+    
+    // Delete from file system
+    const filePath = join(__dirname, 'uploads', row.file_name);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    
+    // Delete from database
+    db.run('DELETE FROM documents WHERE id = ?', [docId], function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    });
   });
 });
 
