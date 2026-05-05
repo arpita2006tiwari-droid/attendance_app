@@ -2,16 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Check, X, LogOut, Activity, Info, ChevronRight, ChevronLeft, History, Moon, Clock, Download, Calendar, Filter, Users, MapPin, Upload, FileText, Trash2, Eye, Edit } from 'lucide-react';
 
 export default function App() {
-  const getSafeStorage = (key) => {
-    try {
-      return localStorage.getItem(key);
-    } catch (e) {
-      return null;
-    }
-  };
-
-  const [token, setToken] = useState(getSafeStorage('token'));
-  const [coachName, setCoachName] = useState((getSafeStorage('coachName') === 'Coach Arpita' ? '' : getSafeStorage('coachName')) || '');
+  const coachName = 'Coach';
   const [students, setStudents] = useState([]);
   const [recentAttendance, setRecentAttendance] = useState([]);
   
@@ -46,7 +37,6 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   // Form State
-  const [loginPwd, setLoginPwd] = useState('');
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentAge, setNewStudentAge] = useState('');
   const [newStudentPhone, setNewStudentPhone] = useState('');
@@ -147,12 +137,12 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'soft');
-    if (token) fetchData();
+    fetchData();
     
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [token, attendanceDate, session, sessionTime, selectedSchool, selectedCentre]);
+  }, [attendanceDate, session, sessionTime, selectedSchool, selectedCentre]);
 
   const addSchool = async (e) => {
     e.preventDefault();
@@ -192,30 +182,6 @@ export default function App() {
     } catch (err) { alert('Failed to add centre'); }
   };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: loginPwd })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setToken(data.token);
-        setCoachName(data.coach_name);
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('coachName', data.coach_name);
-      } else alert('Invalid password');
-    } catch (err) { alert('Login failed'); }
-  };
-
-  const handleLogout = () => {
-    setToken(null);
-    setCoachName('');
-    localStorage.removeItem('token');
-    localStorage.removeItem('coachName');
-  };
 
   const openStudentInfo = async (student) => {
     setSelectedStudentInfo(student);
@@ -458,17 +424,6 @@ export default function App() {
     return `XXXX-XXXX-${aadhaar.slice(-4)}`;
   };
 
-  if (!token) {
-    return (
-      <div className="login-screen">
-        <form onSubmit={handleLogin} className="login-form">
-          <h2>Hi5 Attendance</h2>
-          <input type="password" placeholder="Password" value={loginPwd} onChange={e => setLoginPwd(e.target.value)} />
-          <button type="submit" className="btn-primary">Login</button>
-        </form>
-      </div>
-    );
-  }
 
   return (
     <div className="app-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -479,7 +434,6 @@ export default function App() {
               <h1 style={{ margin:0, fontSize:'1.25rem', fontWeight:700 }}>Hi5 Youth Foundation</h1>
               <div style={{ display:'flex', gap:'4px', flexShrink:0 }}>
                 <button onClick={() => { fetchHistory(); setShowHistoryModal(true); }} className="btn-icon" title="History"><Clock size={20} /></button>
-                <button onClick={handleLogout} className="btn-icon" title="Logout"><LogOut size={20} /></button>
               </div>
             </div>
 
