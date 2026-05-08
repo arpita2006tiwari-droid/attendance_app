@@ -20,6 +20,7 @@ export default function App() {
   
   // New States for School & Centre Grouping & History Explorer
   const [currentView, setCurrentView] = useState('marking'); // 'marking' | 'explorer'
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedSchool, setSelectedSchool] = useState('All Schools');
   const [selectedCentre, setSelectedCentre] = useState('All Centres');
   const [explorerStudent, setExplorerStudent] = useState(null);
@@ -51,6 +52,8 @@ export default function App() {
   const [newStudentAadhaar, setNewStudentAadhaar] = useState('');
   const [newStudentSchoolIdFile, setNewStudentSchoolIdFile] = useState(null);
   const [newStudentAadhaarFrontFile, setNewStudentAadhaarFrontFile] = useState(null);
+  const [newStudentProfilePhoto, setNewStudentProfilePhoto] = useState(null);
+  const [newStudentProfilePhotoFile, setNewStudentProfilePhotoFile] = useState(null);
   const [newStudentAadhaarBackFile, setNewStudentAadhaarBackFile] = useState(null);
 
   // Edit Mode State
@@ -73,7 +76,20 @@ export default function App() {
   const [studentHistory, setStudentHistory] = useState([]);
   const [explorerHistory, setExplorerHistory] = useState([]);
 
+  // Session & Insights State
+  const [sessions, setSessions] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [showSessionModal, setShowSessionModal] = useState(false);
+  const [sessionForm, setSessionForm] = useState({ title: '', focus_area: 'Drills', notes: '', coach: coachName });
+  const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [sessionImages, setSessionImages] = useState([]);
+  const [studentNotes, setStudentNotes] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
+
   const fileInputRef = useRef(null);
+  const sessionImageRef = useRef(null);
 
   const fetchData = async () => {
     try {
@@ -116,6 +132,14 @@ export default function App() {
       const resCentres = await fetch('/api/centres');
       const dataCentres = await resCentres.json();
       setCentres(dataCentres || []);
+
+      const resSessions = await fetch('/api/sessions');
+      const dataSessions = await resSessions.json();
+      setSessions(dataSessions || []);
+
+      const resStats = await fetch('/api/stats/summary');
+      const dataStats = await resStats.json();
+      setStats(dataStats || null);
     } catch (err) {
       console.error('Error fetching data:', err);
     }
@@ -137,7 +161,8 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'soft');
-    fetchData();
+    setIsLoading(true);
+    fetchData().finally(() => setIsLoading(false));
     
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
@@ -194,6 +219,10 @@ export default function App() {
       const resDocs = await fetch(`/api/students/${student.id}/documents`);
       const dataDocs = await resDocs.json();
       setStudentDocuments(dataDocs);
+
+      const resNotes = await fetch(`/api/students/${student.id}/notes`);
+      const dataNotes = await resNotes.json();
+      setStudentNotes(dataNotes);
     } catch (err) {
       console.error('Failed to fetch student details');
     }
@@ -215,6 +244,8 @@ export default function App() {
     setNewStudentSchoolIdFile(null);
     setNewStudentAadhaarFrontFile(null);
     setNewStudentAadhaarBackFile(null);
+    setNewStudentProfilePhoto(null);
+    setNewStudentProfilePhotoFile(null);
     setIsEditMode(false);
     setEditingStudentId(null);
   };
@@ -232,6 +263,7 @@ export default function App() {
     setNewStudentJoiningDate(student.joining_date || '');
     setNewStudentSchoolIdNumber(student.school_id_number || '');
     setNewStudentAadhaar(student.aadhaar_number || '');
+    setNewStudentProfilePhoto(student.profile_photo || null);
     
     setIsEditMode(true);
     setEditingStudentId(student.id);
@@ -248,36 +280,39 @@ export default function App() {
       return;
     }
 
-    const payload = { 
-      name: newStudentName, 
-      sport: selectedSport,
-      age: newStudentAge ? parseInt(newStudentAge) : null,
-      phone: newStudentPhone,
-      address: newStudentAddress,
-      school: newStudentSchool,
-      centre_id: newStudentCentre,
-      serial_number: newStudentSerial,
-      parent_name: newStudentParentName,
-      email: newStudentEmail,
-      joining_date: newStudentJoiningDate,
-      school_id_number: newStudentSchoolIdNumber,
-      aadhaar_number: newStudentAadhaar
-    };
+    const formData = new FormData();
+    formData.append('name', newStudentName);
+    formData.append('sport', selectedSport);
+    formData.append('age', newStudentAge || '');
+    formData.append('phone', newStudentPhone);
+    formData.append('address', newStudentAddress);
+    formData.append('school', newStudentSchool);
+    formData.append('centre_id', newStudentCentre);
+    formData.append('serial_number', newStudentSerial);
+    formData.append('parent_name', newStudentParentName);
+    formData.append('email', newStudentEmail);
+    formData.append('joining_date', newStudentJoiningDate);
+    formData.append('school_id_number', newStudentSchoolIdNumber);
+    formData.append('aadhaar_number', newStudentAadhaar);
+    
+    if (newStudentProfilePhotoFile) {
+      formData.append('profile_photo', newStudentProfilePhotoFile);
+    } else if (isEditMode && newStudentProfilePhoto) {
+      formData.append('profile_photo', newStudentProfilePhoto);
+    }
 
     try {
       let studentId;
       if (isEditMode && editingStudentId) {
         await fetch(`/api/students/${editingStudentId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: formData
         });
         studentId = editingStudentId;
       } else {
         const res = await fetch('/api/students', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: formData
         });
         const data = await res.json();
         studentId = data.id;
@@ -398,10 +433,22 @@ export default function App() {
       });
       const data = await res.json();
       if (data.success) {
-        alert('Attendance submitted successfully!');
-        setAttendanceDate(new Date().toISOString().split('T')[0]);
-        setSession('Morning');
-        setSessionTime('');
+        setShowSuccessToast(true);
+        setTimeout(() => setShowSuccessToast(false), 3000);
+        
+        // Auto-create/open session update modal
+        const currentSession = sessions.find(s => s.date === attendanceDate && s.session === session && s.session_time === sessionTime);
+        if (currentSession) {
+          setSessionForm({ title: currentSession.title || '', focus_area: currentSession.focus_area || 'Drills', notes: currentSession.notes || '', coach: currentSession.coach_name || coachName });
+          setCurrentSessionId(currentSession.id);
+          fetchSessionImages(currentSession.id);
+        } else {
+          setSessionForm({ title: '', focus_area: 'Drills', notes: '', coach: coachName });
+          setCurrentSessionId(null);
+          setSessionImages([]);
+        }
+        setShowSessionModal(true);
+
         setPendingAttendance({});
         setSearchQuery('');
         setIsEditing(true); 
@@ -410,14 +457,103 @@ export default function App() {
     } catch (err) { alert('Failed to submit attendance'); }
   };
 
+  const fetchSessionImages = async (sessionId) => {
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/images`);
+      const data = await res.json();
+      setSessionImages(data || []);
+    } catch (err) { console.error('Failed to fetch session images'); }
+  };
+
+  const submitSessionUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...sessionForm,
+          date: attendanceDate,
+          session,
+          session_time: sessionTime,
+          sport: selectedSport
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Session details updated!');
+        fetchData();
+        setShowSessionModal(false);
+      }
+    } catch (err) { alert('Failed to update session'); }
+  };
+
+  const handleSessionImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !currentSessionId) return;
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('caption', '');
+    try {
+      const res = await fetch(`/api/sessions/${currentSessionId}/images`, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) fetchSessionImages(currentSessionId);
+    } catch (err) { alert('Image upload failed'); }
+  };
+
+  const addStudentNote = async (type, content) => {
+    if (!selectedStudentInfo) return;
+    try {
+      await fetch(`/api/students/${selectedStudentInfo.id}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coach_name: coachName, note_type: type, content, date: new Date().toISOString().split('T')[0] })
+      });
+      const resNotes = await fetch(`/api/students/${selectedStudentInfo.id}/notes`);
+      const dataNotes = await resNotes.json();
+      setStudentNotes(dataNotes);
+    } catch (err) { alert('Failed to add note'); }
+  };
+
   const filteredStudents = (students || []).filter(s => {
     if (!s) return false;
+    const query = (searchQuery || '').toLowerCase();
     const name = (s.name || '').toLowerCase();
     const id = String(s.student_id || '').toLowerCase();
     const serial = String(s.serial_number || '').toLowerCase();
-    const query = (searchQuery || '').toLowerCase();
-    return name.includes(query) || id.includes(query) || serial.includes(query);
+    const school = (s.school || '').toLowerCase();
+    const centre = (s.centre_name || '').toLowerCase();
+    const sport = (s.sport || '').toLowerCase();
+    
+    return name.includes(query) || 
+           id.includes(query) || 
+           serial.includes(query) || 
+           school.includes(query) || 
+           centre.includes(query) || 
+           sport.includes(query);
   });
+  
+  const exportToCSV = (data, filename) => {
+    if (!data || data.length === 0) return;
+    const headers = Object.keys(data[0]).join(',');
+    const rows = data.map(row => 
+      Object.values(row).map(val => 
+        typeof val === 'string' ? `"${val.replace(/"/g, '""')}"` : val
+      ).join(',')
+    ).join('\n');
+    const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + rows;
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${filename}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
   
   const maskAadhaar = (aadhaar) => {
     if (!aadhaar || aadhaar.length !== 12) return 'N/A';
@@ -437,9 +573,11 @@ export default function App() {
               </div>
             </div>
 
-            <div style={{ display:'flex', background:'var(--bg-alt)', borderRadius:'10px', padding:'4px', gap:'4px' }}>
-              <button onClick={() => setCurrentView('marking')} className={`tab-btn ${currentView==='marking'?'active':''}`} style={{ flex:1 }}>Mark Attendance</button>
-              <button onClick={() => setCurrentView('explorer')} className={`tab-btn ${currentView==='explorer'?'active':''}`} style={{ flex:1 }}>History Explorer</button>
+            <div style={{ display:'flex', background:'var(--bg-alt)', borderRadius:'12px', padding:'4px', gap:'4px' }}>
+              <button onClick={() => setCurrentView('marking')} className={`tab-btn ${currentView==='marking'?'active':''}`} style={{ flex:1 }}>Attendance</button>
+              <button onClick={() => setCurrentView('timeline')} className={`tab-btn ${currentView==='timeline'?'active':''}`} style={{ flex:1 }}>Timeline</button>
+              <button onClick={() => setCurrentView('insights')} className={`tab-btn ${currentView==='insights'?'active':''}`} style={{ flex:1 }}>Insights</button>
+              <button onClick={() => setCurrentView('explorer')} className={`tab-btn ${currentView==='explorer'?'active':''}`} style={{ flex:1 }}>Explorer</button>
             </div>
 
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'10px', flexWrap:'wrap' }}>
@@ -476,7 +614,11 @@ export default function App() {
 
           </header>
 
-        {currentView === 'marking' ? (
+        {isLoading ? (
+          <div className="flex flex-col gap-4">
+            {[1,2,3,4,5].map(i => <div key={i} className="skeleton" style={{ height: '60px', width: '100%' }}></div>)}
+          </div>
+        ) : currentView === 'marking' ? (
           <>
             <div style={{ display:'flex', flexDirection:'column', gap:'12px', marginBottom:'16px' }}>
 
@@ -484,7 +626,7 @@ export default function App() {
                 <Search size={18} style={{ color:'var(--text-secondary)', flexShrink:0 }} />
                 <input
                   type="text"
-                  placeholder="Search name, ID or serial..."
+                  placeholder="Search by name, ID, school, sport..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   style={{ border:'none', background:'transparent', padding:0, flex:1, outline:'none', fontSize:'0.95rem', color:'var(--text-primary)' }}
@@ -533,7 +675,10 @@ export default function App() {
             <div style={{ border:'none', background:'transparent', boxShadow:'none' }}>
               <div className="attendance-list-compact">
                 {!filteredStudents || filteredStudents.length === 0 ? (
-                  <div style={{ textAlign:'center', paddingTop:'60px', paddingBottom:'32px', color:'var(--text-secondary)', opacity:0.55, fontSize:'0.9rem', letterSpacing:'0.01em' }}>No students found.</div>
+                  <div className="text-center py-24 opacity-50 animate-fade-in">
+                    <div className="empty-illustration"></div>
+                    <p>No students found matching your search.</p>
+                  </div>
                 ) : (
                   filteredStudents.map(student => (
                     <div 
@@ -541,8 +686,12 @@ export default function App() {
                       className={`attendance-row ${pendingAttendance[student.id] === 'Present' ? 'marked-present' : ''} ${pendingAttendance[student.id] === 'Absent' ? 'marked-absent' : ''}`}
                     >
                       <div className="student-info-compact" onClick={() => openStudentInfo(student)}>
-                        <div className="avatar" style={{ width: 34, height: 34, fontSize: '0.8rem' }}>
-                          {(student.name || '?').substring(0, 2).toUpperCase()}
+                        <div className="avatar" style={{ width: 34, height: 34, fontSize: '0.8rem', overflow: 'hidden' }}>
+                          {student.profile_photo ? (
+                            <img src={`/uploads/${student.profile_photo}`} alt={student.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            (student.name || '?').substring(0, 2).toUpperCase()
+                          )}
                         </div>
                         <div style={{ minWidth: 0 }}>
                           <div className="student-name-text">
@@ -591,15 +740,85 @@ export default function App() {
             {filteredStudents.length > 0 && isEditing && (
               <div className="fixed-submit-bar">
                 <button 
-                  className="btn-primary" 
+                  className="btn-primary animate-slide-up" 
                   onClick={submitBulkAttendance}
-                  style={{ width: '100%', maxWidth: '400px', height: '50px', fontSize: '1.1rem' }}
+                  style={{ width: '100%', maxWidth: '400px', height: '50px', fontSize: '1.1rem', borderRadius: 'var(--radius-lg)' }}
                 >
-                  Submit Attendance
+                  <Check size={20} /> Submit Attendance
                 </button>
               </div>
             )}
           </>
+        ) : currentView === 'timeline' ? (
+          <div className="timeline-view animate-fade-in">
+            <h2 className="mb-6">Session Timeline</h2>
+            {sessions.length === 0 ? (
+              <div className="text-center py-24 opacity-50">
+                <div className="empty-illustration"></div>
+                <p>No sessions recorded yet.</p>
+              </div>
+            ) : (
+              <div className="timeline">
+                {sessions.map((s) => (
+                  <div key={s.id} className="timeline-item">
+                    <div className="timeline-dot"></div>
+                    <div className="timeline-content">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h3 className="m-0 text-accent">{s.title || 'Training Session'}</h3>
+                          <p className="text-xs text-secondary">{s.date} • {s.session} {s.session_time ? `• ${s.session_time}` : ''}</p>
+                        </div>
+                        <span className="badge regular" style={{ fontSize: '0.65rem' }}>{s.focus_area}</span>
+                      </div>
+                      <p className="text-sm mb-3" style={{ lineHeight: '1.5' }}>{s.notes || 'No session notes provided.'}</p>
+                      <div className="text-xs text-secondary mb-3">Coach: {s.coach_name}</div>
+                      
+                      {/* Session Gallery */}
+                      <SessionGallery sessionId={s.id} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : currentView === 'insights' ? (
+          <div className="insights-view animate-fade-in">
+            <h2 className="mb-6">Academy Updates</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+              <div className="insight-card" style={{ padding: '16px', borderRadius: '16px' }}>
+                <div className="stat-value" style={{ fontSize: '1.5rem' }}>{stats?.presentToday || 0}</div>
+                <div className="stat-label">Students Present Today</div>
+              </div>
+              <div className="insight-card" style={{ padding: '16px', borderRadius: '16px' }}>
+                <div className="stat-value" style={{ fontSize: '1.5rem' }}>{stats?.totalSessionsWeek || 0}</div>
+                <div className="stat-label">Sessions This Week</div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <h3 className="text-xs font-bold mb-1 text-secondary uppercase tracking-widest">Recent Updates</h3>
+              {(stats?.notices || []).length === 0 ? (
+                <div className="p-4 rounded-xl border border-dashed text-center opacity-50">
+                  <p className="text-sm">No new updates at the moment.</p>
+                </div>
+              ) : (
+                stats.notices.map((notice, i) => (
+                  <div key={i} className="p-4 rounded-xl border bg-surface flex items-center gap-3 animate-slide-up" style={{ animationDelay: `${i * 0.1}s` }}>
+                    <div className="w-2 h-2 rounded-full bg-accent"></div>
+                    <span className="text-sm font-medium">{notice}</span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="mt-8 p-6 rounded-2xl bg-accent-soft border border-accent" style={{ opacity: 0.8 }}>
+              <h3 className="text-sm font-bold mb-2 flex items-center gap-2">
+                <Info size={16} /> Coach Tip
+              </h3>
+              <p className="text-sm m-0">Focus on students with low attendance this week to ensure they stay on track with their training goals.</p>
+            </div>
+          </div>
         ) : (
           <div className="history-explorer">
             <div className="flex gap-4 mb-6 explorer-header">
@@ -621,18 +840,41 @@ export default function App() {
             </div>
 
             {explorerStudent ? (
-              <div className="card p-6 explorer-content">
-                <div className="flex justify-between items-center mb-6">
-                  <div>
-                    <h2 style={{ fontSize: '1.5rem', marginBottom: '4px' }}>{explorerStudent.name}</h2>
-                    <p className="text-secondary">{explorerStudent.school || 'No School'} • {explorerStudent.sport}</p>
+              <div className="card p-6 explorer-content printable-area">
+                <div className="flex justify-between items-center mb-6 no-print">
+                  <div className="flex items-center gap-4">
+                    <div className="avatar" style={{ width: 60, height: 60, fontSize: '1.5rem', overflow: 'hidden' }}>
+                      {explorerStudent.profile_photo ? (
+                        <img src={`/uploads/${explorerStudent.profile_photo}`} alt={explorerStudent.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        (explorerStudent.name || '?').substring(0, 2).toUpperCase()
+                      )}
+                    </div>
+                    <div>
+                      <h2 style={{ fontSize: '1.5rem', marginBottom: '4px' }}>{explorerStudent.name}</h2>
+                      <p className="text-secondary">{explorerStudent.school || 'No School'} • {explorerStudent.sport}</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
+                  <div className="flex items-center gap-3">
+                    <button className="btn-ghost border" onClick={() => exportToCSV(explorerHistory, `${explorerStudent.name}_attendance`)}>
+                      <Download size={16} /> Export CSV
+                    </button>
+                    <button className="btn-primary" onClick={handlePrint}>
+                      <FileText size={16} /> Print Report
+                    </button>
+                    <div className="text-right ml-4">
                       <div className="text-3xl font-bold text-accent">{explorerStudent.percentage}%</div>
                       <div className="text-xs text-secondary uppercase tracking-wider">Attendance</div>
                     </div>
                   </div>
+                </div>
+
+                <div className="print-only" style={{ display: 'none' }}>
+                  <h1 style={{ color: 'var(--accent-color)' }}>Attendance Report: {explorerStudent.name}</h1>
+                  <p>School: {explorerStudent.school} | Centre: {explorerStudent.centre_name}</p>
+                  <p>Date Range: {startDate || 'Start'} to {endDate || 'Today'}</p>
+                  <p>Overall Attendance: {explorerStudent.percentage}%</p>
+                  <hr style={{ margin: '20px 0' }} />
                 </div>
 
                 <div className="student-history-list" style={{ maxHeight: '500px', overflowY: 'auto' }}>
@@ -673,8 +915,12 @@ export default function App() {
           <div className="modal-content profile-modal scrollable-modal" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-3">
-                <div className="avatar" style={{ width: 48, height: 48, fontSize: '1.2rem' }}>
-                  {(selectedStudentInfo.name || '?').substring(0, 2).toUpperCase()}
+                <div className="avatar" style={{ width: 48, height: 48, fontSize: '1.2rem', overflow: 'hidden' }}>
+                  {selectedStudentInfo.profile_photo ? (
+                    <img src={`/uploads/${selectedStudentInfo.profile_photo}`} alt={selectedStudentInfo.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    (selectedStudentInfo.name || '?').substring(0, 2).toUpperCase()
+                  )}
                 </div>
                 <div>
                   <h2 style={{ fontSize: '1.2rem', display:'flex', alignItems:'center', gap:'6px' }}>
@@ -735,13 +981,43 @@ export default function App() {
                   </div>
 
                   <div className="info-section mb-4">
-                    <h3 className="section-title text-sm font-bold text-accent mb-2">Attendance Summary</h3>
-                    <div className="info-grid mt-0">
-                      <div className="info-item"><span className="text-secondary text-xs font-medium">Status</span><span className={`badge ${(selectedStudentInfo.health || '').toLowerCase()}`}>{selectedStudentInfo.health} ({selectedStudentInfo.percentage}%)</span></div>
-                      <div className="info-item"><span className="text-secondary text-xs font-medium">Total Classes</span><span className="text-sm">{selectedStudentInfo.total_classes || 0}</span></div>
+                    <h3 className="section-title text-sm font-bold text-accent mb-2">Performance & Participation Notes</h3>
+                    <div className="flex flex-col gap-3 mb-4">
+                      {studentNotes.length === 0 ? (
+                        <p className="text-xs text-secondary">No performance notes yet.</p>
+                      ) : (
+                        studentNotes.map((n, i) => (
+                          <div key={i} className="p-3 rounded-lg border bg-bg-alt" style={{ background: 'var(--bg-alt)', border: '1px solid var(--border-color)' }}>
+                            <div className="flex justify-between items-center mb-1">
+                              <span className={`badge ${n.note_type.toLowerCase() === 'excellent' ? 'regular' : n.note_type.toLowerCase() === 'injured' ? 'low' : 'warning'}`} style={{ fontSize: '0.6rem' }}>
+                                {n.note_type}
+                              </span>
+                              <span className="text-xs text-secondary">{n.date}</span>
+                            </div>
+                            <p className="text-sm m-0">{n.content}</p>
+                            <div className="text-xs text-secondary mt-1">Coach: {n.coach_name}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    
+                    <div className="flex gap-2 flex-wrap">
+                      {['Active', 'Injured', 'Excellent', 'Needs Improvement'].map(type => (
+                        <button 
+                          key={type} 
+                          onClick={() => {
+                            const note = prompt(`Add a note for ${type}:`);
+                            if (note) addStudentNote(type, note);
+                          }}
+                          className="btn-ghost border text-xs py-1 px-2"
+                          style={{ borderRadius: '6px' }}
+                        >
+                          + {type}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  
+
                   <div className="mt-6 pt-4 flex gap-3" style={{ borderTop:'1px solid var(--border-color)' }}>
                     <button className="btn-primary flex-1 py-3" onClick={() => openEditModal(selectedStudentInfo)}><Edit size={16} /> Edit Profile</button>
                     <button className="btn-danger flex-1 py-3" onClick={() => deleteStudent(selectedStudentInfo.id)}><Trash2 size={16} /> Delete Student</button>
@@ -857,6 +1133,29 @@ export default function App() {
               <div className="form-section">
                 <h3 className="section-title text-sm font-bold text-accent mb-3 uppercase tracking-wider">Basic Information</h3>
                 <div className="form-grid">
+                  <div className="info-item" style={{ display: 'flex', alignItems: 'center', gap: '16px', gridColumn: '1 / -1', marginBottom: '8px' }}>
+                    <div className="avatar" style={{ width: 64, height: 64, fontSize: '1.5rem', overflow: 'hidden', flexShrink: 0 }}>
+                      {newStudentProfilePhotoFile ? (
+                        <img src={URL.createObjectURL(newStudentProfilePhotoFile)} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : newStudentProfilePhoto ? (
+                        <img src={`/uploads/${newStudentProfilePhoto}`} alt="Existing" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        (newStudentName || '?').substring(0, 2).toUpperCase()
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs text-secondary font-medium mb-1 block">Profile Photo</label>
+                      <div className="flex gap-2">
+                        <label className="btn-ghost border py-1 px-3 text-xs cursor-pointer rounded-lg bg-white">
+                          Change Photo
+                          <input type="file" onChange={e => setNewStudentProfilePhotoFile(e.target.files[0])} accept="image/*" style={{ display: 'none' }} />
+                        </label>
+                        {(newStudentProfilePhotoFile || newStudentProfilePhoto) && (
+                          <button type="button" onClick={() => { setNewStudentProfilePhotoFile(null); setNewStudentProfilePhoto(null); }} className="btn-ghost border py-1 px-3 text-xs rounded-lg text-danger">Remove</button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                   <div className="info-item" style={{ gridColumn: '1 / -1' }}>
                     <label className="text-xs text-secondary font-medium">Full Name *</label>
                     <input type="text" value={newStudentName} onChange={e => setNewStudentName(e.target.value)} required />
@@ -1022,6 +1321,105 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Session Update Modal */}
+      {showSessionModal && (
+        <div className="modal-overlay" onClick={() => setShowSessionModal(false)}>
+          <div className="modal-content form-modal animate-slide-up" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="m-0 text-xl font-bold">Session Summary & Media</h2>
+              <button className="btn-icon" onClick={() => setShowSessionModal(false)}><X size={20}/></button>
+            </div>
+            <form onSubmit={submitSessionUpdate} className="flex flex-col gap-4">
+              <div className="info-item">
+                <label className="text-xs text-secondary font-medium">Session Title</label>
+                <input type="text" placeholder="e.g. Morning Drills" value={sessionForm.title} onChange={e => setSessionForm({...sessionForm, title: e.target.value})} />
+              </div>
+              <div className="flex gap-4">
+                <div className="info-item flex-1">
+                  <label className="text-xs text-secondary font-medium">Focus Area</label>
+                  <select value={sessionForm.focus_area} onChange={e => setSessionForm({...sessionForm, focus_area: e.target.value})}>
+                    <option>Fitness</option>
+                    <option>Drills</option>
+                    <option>Practice Match</option>
+                    <option>Strategy</option>
+                  </select>
+                </div>
+                <div className="info-item flex-1">
+                  <label className="text-xs text-secondary font-medium">Coach Name</label>
+                  <input type="text" value={sessionForm.coach} onChange={e => setSessionForm({...sessionForm, coach: e.target.value})} />
+                </div>
+              </div>
+              <div className="info-item">
+                <label className="text-xs text-secondary font-medium">Post-Session Notes</label>
+                <textarea 
+                  rows="3" 
+                  value={sessionForm.notes} 
+                  onChange={e => setSessionForm({...sessionForm, notes: e.target.value})}
+                  style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--border-color)', outline: 'none', font: 'inherit' }}
+                />
+              </div>
+
+              {currentSessionId && (
+                <div className="info-item">
+                  <label className="text-xs text-secondary font-medium mb-2">Court / Ground Images</label>
+                  <div className="gallery-grid mb-3">
+                    {sessionImages.map(img => (
+                      <div key={img.id} className="gallery-item" onClick={() => setImagePreview(`/uploads/${img.file_name}`)}>
+                        <img src={`/uploads/${img.file_name}`} alt="Session" />
+                      </div>
+                    ))}
+                    <label className="gallery-item flex items-center justify-center border-dashed" style={{ borderStyle: 'dashed' }}>
+                      <Plus size={24} style={{ color: 'var(--text-secondary)' }} />
+                      <input type="file" hidden accept="image/*" onChange={handleSessionImageUpload} />
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              <button type="submit" className="btn-primary py-3 w-full mt-2">
+                <Check size={18} /> {currentSessionId ? 'Update Session' : 'Save Session Summary'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {showSuccessToast && (
+        <div className="toast-success">
+          <Check size={20} /> Attendance submitted successfully!
+        </div>
+      )}
+
+      {/* Image Preview Modal */}
+      {imagePreview && (
+        <div className="modal-overlay" onClick={() => setImagePreview(null)} style={{ background: 'rgba(0,0,0,0.9)', zIndex: 3000 }}>
+          <img src={imagePreview} alt="Preview" style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: '12px', boxShadow: '0 0 40px rgba(0,0,0,0.5)' }} />
+          <button className="btn-icon" style={{ position: 'fixed', top: '20px', right: '20px', color: 'white' }} onClick={() => setImagePreview(null)}><X size={32}/></button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Sub-component for Gallery in Timeline
+function SessionGallery({ sessionId }) {
+  const [images, setImages] = useState([]);
+  useEffect(() => {
+    fetch(`/api/sessions/${sessionId}/images`).then(res => res.json()).then(data => setImages(data || []));
+  }, [sessionId]);
+
+  if (images.length === 0) return null;
+
+  return (
+    <div className="gallery-grid">
+      {images.map(img => (
+        <div key={img.id} className="gallery-item">
+          <img src={`/uploads/${img.file_name}`} alt="Session" />
+          {img.caption && <div className="gallery-caption">{img.caption}</div>}
+        </div>
+      ))}
     </div>
   );
 }
